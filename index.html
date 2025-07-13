@@ -469,7 +469,7 @@
             let totalFemale = 0;
             let totalRooms = 0;
 
-            // Loop through data from index 0 to 5 (representing rows 1 to 6)
+            // Loop through data from index 0 to 5 (representing rows 1 to 6) for main stats
             for (let i = 0; i <= 5; i++) {
                 if (data[i]) { // Ensure the row exists
                     totalStudents += (data[i]['จำนวนรวม'] || 0);
@@ -478,6 +478,12 @@
                     totalRooms += (data[i]['จำนวนห้อง'] || 0);
                 }
             }
+
+            // Get average per room data for specific rows and format to 2 decimal places
+            // Ensure data[index] exists before trying to access its properties
+            const avgMiddleSchool = (data[6] && data[6]['เฉลี่ย/ห้อง'] !== undefined) ? parseFloat(data[6]['เฉลี่ย/ห้อง']).toFixed(2) : '0.00'; // Row 7 (index 6)
+            const avgHighSchool = (data[7] && data[7]['เฉลี่ย/ห้อง'] !== undefined) ? parseFloat(data[7]['เฉลี่ย/ห้อง']).toFixed(2) : '0.00';   // Row 8 (index 7)
+            const avgAllStudents = (data[8] && data[8]['เฉลี่ย/ห้อง'] !== undefined) ? parseFloat(data[8]['เฉลี่ย/ห้อง']).toFixed(2) : '0.00';  // Row 9 (index 8)
             
             // Generate HTML for statistics cards, chart, and data table
             tabContent.innerHTML = `
@@ -498,6 +504,18 @@
                         <div class="stat-number">${totalRooms}</div>
                         <div class="stat-label">🏫 จำนวนห้องเรียน</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${avgMiddleSchool}</div>
+                        <div class="stat-label">🧑‍🎓 ม.ต้น เฉลี่ย/ห้อง</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${avgHighSchool}</div>
+                        <div class="stat-label">👨‍🎓 ม.ปลาย เฉลี่ย/ห้อง</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${avgAllStudents}</div>
+                        <div class="stat-label">📚 นักเรียนทั้งหมด เฉลี่ย/ห้อง</div>
+                    </div>
                 </div>
 
                 <div class="content-section">
@@ -517,6 +535,7 @@
                                 <th>👦 เพศชาย</th>
                                 <th>👧 เพศหญิง</th>
                                 <th>👥 จำนวนรวม</th>
+                                <th>📏 เฉลี่ย/ห้อง</th> <!-- New column header -->
                             </tr>
                         </thead>
                         <tbody>
@@ -527,6 +546,7 @@
                                     <td>${(row['เพศชาย'] || 0).toLocaleString()}</td>
                                     <td>${(row['เพศหญิง'] || 0).toLocaleString()}</td>
                                     <td><strong>${(row['จำนวนรวม'] || 0).toLocaleString()}</strong></td>
+                                    <td>${(row['เฉลี่ย/ห้อง'] !== undefined ? parseFloat(row['เฉลี่ย/ห้อง']).toFixed(2) : '-')}</td> <!-- New column data, formatted to 2 decimal places -->
                                 </tr>
                             `).join('')}
                         </tbody>
