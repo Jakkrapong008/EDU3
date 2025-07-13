@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สารสนเทศสถิติจำนวนนักเรียน</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Global styles and typography */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background: linear-gradient(135deg, #ffeef0 0%, #fff5f5 100%);
+            min-height: 100vh;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(214, 51, 132, 0.15);
+            border: 1px solid #ffeef0;
+        }
+
+        /* Header section styling */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 1s ease-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .logo {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 15px;
+            animation: bounceIn 1.5s ease-out;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .main-title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #d63384;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 6px rgba(214, 51, 132, 0.2);
+        }
+
+        .subtitle {
+            font-size: 1.4rem;
+            color: #6c757d;
+            font-weight: 400;
+        }
+
+        /* Tab navigation styling */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 20px;
+            padding: 8px;
+            box-shadow: 0 4px 20px rgba(214, 51, 132, 0.1);
+            animation: slideInUp 1s ease-out;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 120px;
+            padding: 15px 25px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-family: 'Sarabun', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #d63384, #e91e63);
+            color: white;
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 6px 20px rgba(214, 51, 132, 0.4);
+        }
+
+        .tab:hover:not(.active) {
+            background: #ffeef0;
+            color: #d63384;
+            transform: translateY(-2px);
+        }
+
+        /* Tab content styling */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.6s ease-in-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 25px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 25px rgba(214, 51, 132, 0.1);
+            border: 1px solid #ffeef0;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #d63384;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 450px; /* Increased height for better visualization */
+            margin-bottom: 30px;
+        }
+
+        /* Data table styling */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(214, 51, 132, 0.1);
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, #d63384, #e91e63);
+            color: white;
+            padding: 18px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .data-table td {
+            padding: 15px 18px;
+            text-align: center;
+            border-bottom: 1px solid #ffeef0;
+            font-size: 1rem;
+        }
+
+        .data-table tr:nth-child(even) {
+            background: #ffeef0;
+        }
+
+        .data-table tr:hover {
+            background: #ffccd5;
+            transition: background 0.3s ease;
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Loading and error messages */
+        .loading, .error {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.3rem;
+            border-radius: 15px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .loading {
+            color: #d63384;
+            background: #fff5f5;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Footer styling */
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #6c757d;
+            font-size: 1rem;
+            animation: fadeInUp 1s ease-out;
+            border-top: 1px solid #eee;
+            padding-top: 30px;
+        }
+
+        /* Statistics cards */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            margin-bottom: 35px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #fff, #ffeef0);
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 6px 20px rgba(214, 51, 132, 0.1);
+            border: 1px solid #ffeef0;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-7px);
+            box-shadow: 0 10px 25px rgba(214, 51, 132, 0.2);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #d63384;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        /* Keyframe animations */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(60px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale(0.3); }
+            50% { opacity: 1; transform: scale(1.1); }
+            70% { transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2rem;
+            }
+            .subtitle {
+                font-size: 1.1rem;
+            }
+            .tabs {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .tab {
+                font-size: 1rem;
+                padding: 12px 15px;
+            }
+            .logo {
+                width: 80px;
+                height: 80px;
+            }
+            .chart-container {
+                height: 350px;
+            }
+            .section-title {
+                font-size: 1.5rem;
+            }
+            .stats-cards {
+                grid-template-columns: 1fr; /* Stack cards on small screens */
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+                border-radius: 15px;
+            }
+            .main-title {
+                font-size: 1.6rem;
+            }
+            .subtitle {
+                font-size: 1rem;
+            }
+            .tab {
+                font-size: 0.9rem;
+                padding: 10px 12px;
+            }
+            .section-title {
+                font-size: 1.3rem;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .stat-number {
+                font-size: 2rem;
+            }
+            .stat-label {
+                font-size: 0.85rem;
+            }
+            .data-table th, .data-table td {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://img2.pic.in.th/pic/logo-HDR.md.png" alt="โลโก้โรงเรียน" class="logo">
+            <h1 class="main-title">📊 สารสนเทศสถิติจำนวนนักเรียน</h1>
+            <p class="subtitle">🏫 โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab(event, '2568')">📅 ปี 2568</button>
+            <button class="tab" onclick="showTab(event, '2567')">📅 ปี 2567</button>
+            <button class="tab" onclick="showTab(event, '2566')">📅 ปี 2566</button>
+            <button class="tab" onclick="showTab(event, '2565')">📅 ปี 2565</button>
+        </div>
+
+        <!-- Tab content for each year -->
+        <div id="tab-2568" class="tab-content active">
+            <div class="loading" id="loading-2568">🔄 กำลังโหลดข้อมูล...</div>
+        </div>
+
+        <div id="tab-2567" class="tab-content">
+            <div class="loading" id="loading-2567">🔄 กำลังโหลดข้อมูล...</div>
+        </div>
+
+        <div id="tab-2566" class="tab-content">
+            <div class="loading" id="loading-2566">🔄 กำลังโหลดข้อมูล...</div>
+        </div>
+
+        <div id="tab-2565" class="tab-content">
+            <div class="loading" id="loading-2565">🔄 กำลังโหลดข้อมูล...</div>
+        </div>
+
+        <div class="footer">
+            👨‍💼 จัดทำโดย กลุ่มงานวิชาการ โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์ 🎓
+        </div>
+    </div>
+
+    <script>
+        // Google Apps Script API URL for fetching data
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwOyvEpu_euUN5hGrmza5A_jH0yqu6q6ECiryZO7SYF9dFN64ZGI7luHAWn0tX0Lv3a0w/exec';
+        let dataCache = {}; // Cache to store fetched data for each year
+        let charts = {}; // Object to store Chart.js instances
+
+        /**
+         * Displays the content for the selected year tab.
+         * @param {Event} event - The click event object.
+         * @param {string} year - The year to display (e.g., '2568').
+         */
+        function showTab(event, year) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove 'active' class from all tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show the selected tab content
+            document.getElementById(`tab-${year}`).classList.add('active');
+            // Add 'active' class to the clicked tab button
+            event.target.classList.add('active');
+            
+            // Load data if not already cached for the selected year
+            if (!dataCache[year]) {
+                loadData(year);
+            }
+        }
+
+        /**
+         * Loads data for a given year from the Google Apps Script API.
+         * @param {string} year - The year for which to load data.
+         */
+        async function loadData(year) {
+            const tabContentElement = document.getElementById(`tab-${year}`);
+            // Display loading message
+            tabContentElement.innerHTML = `<div class="loading" id="loading-${year}">🔄 กำลังโหลดข้อมูล...</div>`;
+
+            try {
+                const response = await fetch(`${API_URL}?sheet=${year}`);
+                const data = await response.json();
+                
+                // Check for errors returned by the API
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Store data in cache
+                dataCache[year] = data;
+                // Render the content with the fetched data
+                renderContent(year, data);
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                // Display error message
+                tabContentElement.innerHTML = `
+                    <div class="error">
+                        ❌ เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        /**
+         * Renders the content (statistics, chart, and table) for a given year.
+         * @param {string} year - The year for which to render content.
+         * @param {Array<Object>} data - The data fetched from the API.
+         */
+        function renderContent(year, data) {
+            const tabContent = document.getElementById(`tab-${year}`);
+            
+            // Initialize totals for rows 1-6 (indices 0-5)
+            let totalStudents = 0;
+            let totalMale = 0;
+            let totalFemale = 0;
+            let totalRooms = 0;
+
+            // Loop through data from index 0 to 5 (representing rows 1 to 6)
+            for (let i = 0; i <= 5; i++) {
+                if (data[i]) { // Ensure the row exists
+                    totalStudents += (data[i]['จำนวนรวม'] || 0);
+                    totalMale += (data[i]['เพศชาย'] || 0);
+                    totalFemale += (data[i]['เพศหญิง'] || 0);
+                    totalRooms += (data[i]['จำนวนห้อง'] || 0);
+                }
+            }
+            
+            // Generate HTML for statistics cards, chart, and data table
+            tabContent.innerHTML = `
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-number">${totalStudents.toLocaleString()}</div>
+                        <div class="stat-label">👥 นักเรียนทั้งหมด</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${totalMale.toLocaleString()}</div>
+                        <div class="stat-label">👦 นักเรียนชาย</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${totalFemale.toLocaleString()}</div>
+                        <div class="stat-label">👧 นักเรียนหญิง</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${totalRooms}</div>
+                        <div class="stat-label">🏫 จำนวนห้องเรียน</div>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <h2 class="section-title">📊 กราฟแสดงจำนวนนักเรียนแยกตามระดับชั้น</h2>
+                    <div class="chart-container">
+                        <canvas id="chart-${year}"></canvas>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <h2 class="section-title">📋 ตารางข้อมูลรายละเอียด</h2>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>📚 ระดับชั้น</th>
+                                <th>🏫 จำนวนห้อง</th>
+                                <th>👦 เพศชาย</th>
+                                <th>👧 เพศหญิง</th>
+                                <th>👥 จำนวนรวม</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(row => `
+                                <tr>
+                                    <td>${row['ระดับชั้น'] || '-'}</td>
+                                    <td>${(row['จำนวนห้อง'] || 0).toLocaleString()}</td>
+                                    <td>${(row['เพศชาย'] || 0).toLocaleString()}</td>
+                                    <td>${(row['เพศหญิง'] || 0).toLocaleString()}</td>
+                                    <td><strong>${(row['จำนวนรวม'] || 0).toLocaleString()}</strong></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            // Create and render the chart
+            createChart(year, data);
+        }
+
+        /**
+         * Creates a bar chart using Chart.js for the given year and data.
+         * @param {string} year - The year for the chart.
+         * @param {Array<Object>} data - The data to plot on the chart.
+         */
+        function createChart(year, data) {
+            const ctx = document.getElementById(`chart-${year}`).getContext('2d');
+            
+            // Destroy existing chart instance if it exists to prevent duplicates
+            if (charts[year]) {
+                charts[year].destroy();
+            }
+
+            const labels = data.map(row => row['ระดับชั้น'] || '');
+            const maleData = data.map(row => row['เพศชาย'] || 0);
+            const femaleData = data.map(row => row['เพศหญิง'] || 0);
+            
+            // Create new Chart.js instance
+            charts[year] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '👦 นักเรียนชาย',
+                            data: maleData,
+                            backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 2,
+                            borderRadius: 8
+                        },
+                        {
+                            label: '👧 นักเรียนหญิง',
+                            data: femaleData,
+                            backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 2,
+                            borderRadius: 8
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `จำนวนนักเรียนปีการศึกษา ${year}`,
+                            font: {
+                                family: 'Sarabun',
+                                size: 18,
+                                weight: 'bold'
+                            },
+                            color: '#d63384'
+                        },
+                        legend: {
+                            labels: {
+                                font: {
+                                    family: 'Sarabun',
+                                    size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                            bodyFont: {
+                                family: 'Sarabun'
+                            },
+                            titleFont: {
+                                family: 'Sarabun'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: {
+                                    family: 'Sarabun'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(214, 51, 132, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    family: 'Sarabun'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(214, 51, 132, 0.1)'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+        }
+
+        // Load initial data for the default year (2568) when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData('2568');
+        });
+    </script>
+</body>
+</html>
