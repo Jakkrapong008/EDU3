@@ -152,13 +152,20 @@
         }
 
         /* Data table styling */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 25px;
+        .table-responsive {
+            overflow-x: auto; /* Enable horizontal scrolling for the table */
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
             border-radius: 15px;
-            overflow: hidden;
             box-shadow: 0 4px 15px rgba(214, 51, 132, 0.1);
+        }
+
+        .data-table {
+            width: 100%; /* Make table take full width of its container */
+            min-width: 600px; /* Ensure table has a minimum width to prevent squishing */
+            border-collapse: collapse;
+            margin-top: 0; /* Remove top margin as it's handled by .table-responsive */
+            border-radius: 15px;
+            overflow: hidden; /* Ensure rounded corners apply to content */
         }
 
         .data-table th {
@@ -168,6 +175,7 @@
             text-align: center;
             font-weight: 600;
             font-size: 1.1rem;
+            white-space: nowrap; /* Prevent header text from wrapping */
         }
 
         .data-table td {
@@ -175,6 +183,7 @@
             text-align: center;
             border-bottom: 1px solid #ffeef0;
             font-size: 1rem;
+            white-space: nowrap; /* Prevent cell text from wrapping */
         }
 
         .data-table tr:nth-child(even) {
@@ -527,30 +536,33 @@
 
                 <div class="content-section">
                     <h2 class="section-title">📋 ตารางข้อมูลรายละเอียด</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>📚 ระดับชั้น</th>
-                                <th>🏫 จำนวนห้อง</th>
-                                <th>👦 เพศชาย</th>
-                                <th>👧 เพศหญิง</th>
-                                <th>👥 จำนวนรวม</th>
-                                <th>📏 เฉลี่ย/ห้อง</th> <!-- New column header -->
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.map(row => `
+                    <!-- Added a responsive wrapper for the table -->
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
                                 <tr>
-                                    <td>${row['ระดับชั้น'] || '-'}</td>
-                                    <td>${(row['จำนวนห้อง'] || 0).toLocaleString()}</td>
-                                    <td>${(row['เพศชาย'] || 0).toLocaleString()}</td>
-                                    <td>${(row['เพศหญิง'] || 0).toLocaleString()}</td>
-                                    <td><strong>${(row['จำนวนรวม'] || 0).toLocaleString()}</strong></td>
-                                    <td>${(row['เฉลี่ย/ห้อง'] !== undefined ? parseFloat(row['เฉลี่ย/ห้อง']).toFixed(2) : '-')}</td> <!-- New column data, formatted to 2 decimal places -->
+                                    <th>📚 ระดับชั้น</th>
+                                    <th>🏫 จำนวนห้อง</th>
+                                    <th>👦 เพศชาย</th>
+                                    <th>👧 เพศหญิง</th>
+                                    <th>👥 จำนวนรวม</th>
+                                    <th>📏 เฉลี่ย/ห้อง</th> <!-- New column header -->
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                ${data.map(row => `
+                                    <tr>
+                                        <td>${row['ระดับชั้น'] || '-'}</td>
+                                        <td>${(row['จำนวนห้อง'] || 0).toLocaleString()}</td>
+                                        <td>${(row['เพศชาย'] || 0).toLocaleString()}</td>
+                                        <td>${(row['เพศหญิง'] || 0).toLocaleString()}</td>
+                                        <td><strong>${(row['จำนวนรวม'] || 0).toLocaleString()}</strong></td>
+                                        <td>${(row['เฉลี่ย/ห้อง'] !== undefined && row['เฉลี่ย/ห้อง'] !== null ? parseFloat(row['เฉลี่ย/ห้อง']).toFixed(2) : '-')}</td> <!-- New column data, formatted to 2 decimal places -->
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `;
             
