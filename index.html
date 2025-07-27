@@ -154,13 +154,20 @@
         }
 
         /* Data table styling */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 25px;
+        .table-responsive {
+            overflow-x: auto; /* Enable horizontal scrolling for the table */
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
             border-radius: 15px;
-            overflow: hidden;
             box-shadow: 0 4px 15px rgba(214, 51, 132, 0.1);
+        }
+
+        .data-table {
+            width: 100%; /* Make table take full width of its container */
+            min-width: 600px; /* Ensure table has a minimum width to prevent squishing */
+            border-collapse: collapse;
+            margin-top: 0; /* Remove top margin as it's handled by .table-responsive */
+            border-radius: 15px;
+            overflow: hidden; /* Ensure rounded corners apply to content */
         }
 
         .data-table th {
@@ -170,6 +177,7 @@
             text-align: center;
             font-weight: 600;
             font-size: 1.1rem;
+            white-space: nowrap; /* Prevent header text from wrapping */
         }
 
         .data-table td {
@@ -177,6 +185,7 @@
             text-align: center;
             border-bottom: 1px solid #ffeef0;
             font-size: 1rem;
+            white-space: nowrap; /* Prevent cell text from wrapping */
         }
 
         .data-table tr:nth-child(even) {
@@ -261,6 +270,38 @@
             font-weight: 500;
         }
 
+        /* Total Stats Tab Specific Styles */
+        .total-stats-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .total-stats-button {
+            padding: 12px 20px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Sarabun', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #555;
+            transition: all 0.3s ease;
+        }
+
+        .total-stats-button.active,
+        .total-stats-button:hover {
+            background: #d63384;
+            color: white;
+            border-color: #d63384;
+            box-shadow: 0 4px 10px rgba(214, 51, 132, 0.2);
+            transform: translateY(-2px);
+        }
+
+
         /* Keyframe animations */
         @keyframes fadeInDown {
             from { opacity: 0; transform: translateY(-40px); }
@@ -318,6 +359,9 @@
             .stats-cards {
                 grid-template-columns: 1fr; /* Stack cards on small screens */
             }
+            .total-stats-controls {
+                flex-direction: column;
+            }
         }
 
         @media (max-width: 480px) {
@@ -366,6 +410,7 @@
             <button class="tab" onclick="showTab(event, '2567')">📅 ปี 2567</button>
             <button class="tab" onclick="showTab(event, '2566')">📅 ปี 2566</button>
             <button class="tab" onclick="showTab(event, '2565')">📅 ปี 2565</button>
+            <button class="tab" onclick="showTab(event, 'total-stats')">📈 สถิติรวม</button>
         </div>
 
         <!-- Tab content for each year -->
@@ -385,6 +430,11 @@
             <div class="loading" id="loading-2565">🔄 กำลังโหลดข้อมูล...</div>
         </div>
 
+        <!-- New Tab content for Total Statistics -->
+        <div id="tab-total-stats" class="tab-content">
+            <div class="loading" id="loading-total-stats">🔄 กำลังโหลดข้อมูลรวม...</div>
+        </div>
+
         <div class="footer">
             👨‍💼 จัดทำโดย กลุ่มงานวิชาการ โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์ 🎓
         </div>
@@ -395,17 +445,75 @@
         const API_URL = 'https://script.google.com/macros/s/AKfycbwOyvEpu_euUN5hGrmza5A_jH0yqu6q6ECiryZO7SYF9dFN64ZGI7luHAWn0tX0Lv3a0w/exec';
         let dataCache = {}; // Cache to store fetched data for each year
         let charts = {}; // Object to store Chart.js instances
+        // Updated order of years for total statistics graph
+        const YEARS = ['2565', '2566', '2567', '2568']; 
+
+        // Define a color palette for different data types in the total stats chart
+        const COLOR_PALETTE = {
+            totalStudents: { backgroundColor: 'rgba(54, 162, 235, 0.8)', borderColor: 'rgba(54, 162, 235, 1)' }, // Blue
+            totalMale: { backgroundColor: 'rgba(75, 192, 192, 0.8)', borderColor: 'rgba(75, 192, 192, 1)' },     // Teal
+            totalFemale: { backgroundColor: 'rgba(255, 99, 132, 0.8)', borderColor: 'rgba(255, 99, 132, 1)' },   // Red/Pink
+            totalRooms: { backgroundColor: 'rgba(153, 102, 255, 0.8)', borderColor: 'rgba(153, 102, 255, 1)' }, // Purple
+            avgMiddleSchool: { backgroundColor: 'rgba(255, 159, 64, 0.8)', borderColor: 'rgba(255, 159, 64, 1)' }, // Orange
+            avgHighSchool: { backgroundColor: 'rgba(255, 205, 86, 0.8)', borderColor: 'rgba(255, 205, 86, 1)' },   // Yellow
+            avgAllStudents: { backgroundColor: 'rgba(201, 203, 207, 0.8)', borderColor: 'rgba(201, 203, 207, 1)' }  // Grey
+        };
 
         // Register the datalabels plugin globally once, after Chart.js and its plugin script have loaded.
-        // This ensures ChartDataLabels is defined when Chart.register is called.
         Chart.register(ChartDataLabels);
 
         /**
-         * Displays the content for the selected year tab.
-         * @param {Event} event - The click event object.
-         * @param {string} year - The year to display (e.g., '2568').
+         * Initializes the application by fetching data for all years.
          */
-        function showTab(event, year) {
+        async function initApp() {
+            const initialYear = '2568'; // Default active tab
+            const loadingElement = document.getElementById(`loading-${initialYear}`);
+            if (loadingElement) {
+                loadingElement.style.display = 'block'; // Ensure loading is visible
+            }
+
+            try {
+                // Fetch data for all years concurrently
+                const fetchPromises = YEARS.map(year => 
+                    fetch(`${API_URL}?sheet=${year}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                throw new Error(`Error for ${year}: ${data.error}`);
+                            }
+                            dataCache[year] = data;
+                        })
+                );
+
+                await Promise.all(fetchPromises);
+                
+                // Once all data is loaded, render the initial tab
+                renderContent(initialYear, dataCache[initialYear]);
+
+            } catch (error) {
+                console.error('Error loading all data:', error);
+                // Display error on the default tab if initial load fails
+                const defaultTabContent = document.getElementById(`tab-${initialYear}`);
+                if (defaultTabContent) {
+                    defaultTabContent.innerHTML = `
+                        <div class="error">
+                            ❌ เกิดข้อผิดพลาดในการโหลดข้อมูลเริ่มต้น: ${error.message}
+                        </div>
+                    `;
+                }
+            } finally {
+                if (loadingElement) {
+                    loadingElement.style.display = 'none'; // Hide loading regardless of success/failure
+                }
+            }
+        }
+
+        /**
+         * Displays the content for the selected year tab or total stats tab.
+         * @param {Event} event - The click event object (can be null for initial load).
+         * @param {string} tabId - The ID of the tab to display (e.g., '2568', 'total-stats').
+         */
+        function showTab(event, tabId) {
             // Hide all tab contents
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
@@ -417,42 +525,51 @@
             });
             
             // Show the selected tab content
-            document.getElementById(`tab-${year}`).classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
             // Add 'active' class to the clicked tab button
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // For initial load without an event, find the button and activate it
+                document.querySelector(`.tab[onclick*="${tabId}"]`).classList.add('active');
+            }
             
-            // Load data if not already cached for the selected year
-            if (!dataCache[year]) {
-                loadData(year);
+            // Render content based on tabId
+            if (tabId === 'total-stats') {
+                renderTotalStatsTab();
+            } else {
+                // Ensure data for the specific year is in cache before rendering
+                if (dataCache[tabId]) {
+                    renderContent(tabId, dataCache[tabId]);
+                } else {
+                    // This case should ideally not happen if initApp fetches all data,
+                    // but as a fallback, load data for the specific year.
+                    loadDataForSingleYear(tabId);
+                }
             }
         }
 
         /**
-         * Loads data for a given year from the Google Apps Script API.
+         * Loads data for a single year (fallback, primarily used by initApp now).
          * @param {string} year - The year for which to load data.
          */
-        async function loadData(year) {
+        async function loadDataForSingleYear(year) {
             const tabContentElement = document.getElementById(`tab-${year}`);
-            // Display loading message
             tabContentElement.innerHTML = `<div class="loading" id="loading-${year}">🔄 กำลังโหลดข้อมูล...</div>`;
 
             try {
                 const response = await fetch(`${API_URL}?sheet=${year}`);
                 const data = await response.json();
                 
-                // Check for errors returned by the API
                 if (data.error) {
                     throw new Error(data.error);
                 }
                 
-                // Store data in cache
                 dataCache[year] = data;
-                // Render the content with the fetched data
                 renderContent(year, data);
                 
             } catch (error) {
-                console.error('Error loading data:', error);
-                // Display error message
+                console.error('Error loading data for single year:', error);
                 tabContentElement.innerHTML = `
                     <div class="error">
                         ❌ เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message}
@@ -462,7 +579,7 @@
         }
 
         /**
-         * Renders the content (statistics, chart, and table) for a given year.
+         * Renders the content (statistics, chart, and table) for a given year tab.
          * @param {string} year - The year for which to render content.
          * @param {Array<Object>} data - The data fetched from the API.
          */
@@ -568,44 +685,28 @@
 
         /**
          * Creates a bar chart using Chart.js for the given year and data.
-         * @param {string} year - The year for the chart.
+         * @param {string} chartId - The ID of the canvas element for the chart.
          * @param {Array<Object>} data - The data to plot on the chart.
+         * @param {Array<string>} labels - Labels for the x-axis.
+         * @param {string} title - Title of the chart.
+         * @param {string} chartType - Type of chart (e.g., 'bar').
+         * @param {Array<Object>} datasets - Array of dataset objects for Chart.js.
+         * @param {Object} datalabelsConfig - Configuration for datalabels plugin.
          */
-        function createChart(year, data) {
-            const ctx = document.getElementById(`chart-${year}`).getContext('2d');
+        function createGenericChart(chartId, labels, datasets, title, datalabelsConfig) {
+            const ctx = document.getElementById(chartId).getContext('2d');
             
             // Destroy existing chart instance if it exists to prevent duplicates
-            if (charts[year]) {
-                charts[year].destroy();
+            if (charts[chartId]) {
+                charts[chartId].destroy();
             }
 
-            const labels = data.map(row => row['ระดับชั้น'] || '');
-            const maleData = data.map(row => row['เพศชาย'] || 0);
-            const femaleData = data.map(row => row['เพศหญิง'] || 0);
-            
             // Create new Chart.js instance
-            charts[year] = new Chart(ctx, {
+            charts[chartId] = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [
-                        {
-                            label: '👦 นักเรียนชาย',
-                            data: maleData,
-                            backgroundColor: 'rgba(54, 162, 235, 0.8)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 2,
-                            borderRadius: 8
-                        },
-                        {
-                            label: '👧 นักเรียนหญิง',
-                            data: femaleData,
-                            backgroundColor: 'rgba(255, 99, 132, 0.8)',
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            borderWidth: 2,
-                            borderRadius: 8
-                        }
-                    ]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -613,7 +714,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: `จำนวนนักเรียนปีการศึกษา ${year}`,
+                            text: title,
                             font: {
                                 family: 'Sarabun',
                                 size: 18,
@@ -635,22 +736,26 @@
                             },
                             titleFont: {
                                 family: 'Sarabun'
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        // Format numbers, and for averages, ensure 2 decimal places
+                                        if (datalabelsConfig && datalabelsConfig.isAverage) {
+                                            label += parseFloat(context.parsed.y).toFixed(2);
+                                        } else {
+                                            label += context.parsed.y.toLocaleString();
+                                        }
+                                    }
+                                    return label;
+                                }
                             }
                         },
-                        datalabels: { // Datalabels plugin configuration
-                            display: true,
-                            color: '#333',
-                            font: {
-                                family: 'Sarabun',
-                                size: 12,
-                                weight: 'bold'
-                            },
-                            anchor: 'end', // Position the label at the end of the bar
-                            align: 'top',  // Align the label to the top of the bar
-                            formatter: function(value) {
-                                return value.toLocaleString(); // Format number with commas
-                            }
-                        }
+                        datalabels: datalabelsConfig
                     },
                     scales: {
                         y: {
@@ -683,10 +788,174 @@
             });
         }
 
-        // Load initial data for the default year (2568) when the DOM is fully loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData('2568');
-        });
+        /**
+         * Creates a bar chart for a specific year's student data.
+         * @param {string} year - The year for the chart.
+         * @param {Array<Object>} data - The data to plot on the chart.
+         */
+        function createChart(year, data) {
+            const labels = data.map(row => row['ระดับชั้น'] || '');
+            const maleData = data.map(row => row['เพศชาย'] || 0);
+            const femaleData = data.map(row => row['เพศหญิง'] || 0);
+            
+            const datasets = [
+                {
+                    label: '👦 นักเรียนชาย',
+                    data: maleData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    borderRadius: 8
+                },
+                {
+                    label: '👧 นักเรียนหญิง',
+                    data: femaleData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    borderRadius: 8
+                }
+            ];
+
+            const datalabelsConfig = {
+                display: true,
+                color: '#333',
+                font: {
+                    family: 'Sarabun',
+                    size: 12,
+                    weight: 'bold'
+                },
+                anchor: 'end',
+                align: 'top',
+                formatter: function(value) {
+                    return value.toLocaleString();
+                }
+            };
+
+            createGenericChart(`chart-${year}`, labels, datasets, `จำนวนนักเรียนปีการศึกษา ${year}`, datalabelsConfig);
+        }
+
+        /**
+         * Renders the content for the "สถิติรวม" tab.
+         */
+        function renderTotalStatsTab() {
+            const tabContent = document.getElementById('tab-total-stats');
+            tabContent.innerHTML = `
+                <div class="content-section">
+                    <h2 class="section-title">📈 สถิติรวมแต่ละปี</h2>
+                    <div class="total-stats-controls">
+                        <button class="total-stats-button active" data-type="totalStudents">👥 นักเรียนทั้งหมด</button>
+                        <button class="total-stats-button" data-type="totalMale">👦 นักเรียนชาย</button>
+                        <button class="total-stats-button" data-type="totalFemale">👧 นักเรียนหญิง</button>
+                        <button class="total-stats-button" data-type="totalRooms">🏫 จำนวนห้องเรียน</button>
+                        <button class="total-stats-button" data-type="avgMiddleSchool">🧑‍� ม.ต้น เฉลี่ย/ห้อง</button>
+                        <button class="total-stats-button" data-type="avgHighSchool">👨‍🎓 ม.ปลาย เฉลี่ย/ห้อง</button>
+                        <button class="total-stats-button" data-type="avgAllStudents">📚 นักเรียนทั้งหมด เฉลี่ย/ห้อง</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-total-stats"></canvas>
+                    </div>
+                </div>
+            `;
+
+            // Add event listeners to the buttons
+            document.querySelectorAll('.total-stats-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    // Remove active class from all buttons
+                    document.querySelectorAll('.total-stats-button').forEach(btn => btn.classList.remove('active'));
+                    // Add active class to the clicked button
+                    event.target.classList.add('active');
+                    updateTotalStatsChart(event.target.dataset.type);
+                });
+            });
+
+            // Initial chart load
+            updateTotalStatsChart('totalStudents');
+        }
+
+        /**
+         * Updates the total statistics chart based on the selected data type.
+         * @param {string} dataType - The type of data to display (e.g., 'totalStudents').
+         */
+        function updateTotalStatsChart(dataType) {
+            const chartLabels = YEARS; // Now ordered as ['2565', '2566', '2567', '2568']
+            const chartData = [];
+            let chartTitle = '';
+            let isAverageData = false; // Flag to indicate if data needs 2 decimal places
+
+            YEARS.forEach(year => {
+                const data = dataCache[year];
+                if (!data) {
+                    chartData.push(0); // Push 0 if data for the year is not available
+                    return;
+                }
+
+                switch (dataType) {
+                    case 'totalStudents':
+                        chartData.push(data.slice(0, 6).reduce((sum, row) => sum + (row['จำนวนรวม'] || 0), 0));
+                        chartTitle = 'กราฟแสดงจำนวนนักเรียนทั้งหมดแต่ละปี';
+                        break;
+                    case 'totalMale':
+                        chartData.push(data.slice(0, 6).reduce((sum, row) => sum + (row['เพศชาย'] || 0), 0));
+                        chartTitle = 'กราฟแสดงจำนวนนักเรียนชายแต่ละปี';
+                        break;
+                    case 'totalFemale':
+                        chartData.push(data.slice(0, 6).reduce((sum, row) => sum + (row['เพศหญิง'] || 0), 0));
+                        chartTitle = 'กราฟแสดงจำนวนนักเรียนหญิงแต่ละปี';
+                        break;
+                    case 'totalRooms':
+                        chartData.push(data.slice(0, 6).reduce((sum, row) => sum + (row['จำนวนห้อง'] || 0), 0));
+                        chartTitle = 'กราฟแสดงจำนวนห้องเรียนแต่ละปี';
+                        break;
+                    case 'avgMiddleSchool':
+                        chartData.push((data[6] && data[6]['เฉลี่ย/ห้อง'] !== undefined) ? parseFloat(data[6]['เฉลี่ย/ห้อง']) : 0);
+                        chartTitle = 'กราฟแสดงนักเรียน ม.ต้น เฉลี่ย/ห้องแต่ละปี';
+                        isAverageData = true;
+                        break;
+                    case 'avgHighSchool':
+                        chartData.push((data[7] && data[7]['เฉลี่ย/ห้อง'] !== undefined) ? parseFloat(data[7]['เฉลี่ย/ห้อง']) : 0);
+                        chartTitle = 'กราฟแสดงนักเรียน ม.ปลาย เฉลี่ย/ห้องแต่ละปี';
+                        isAverageData = true;
+                        break;
+                    case 'avgAllStudents':
+                        chartData.push((data[8] && data[8]['เฉลี่ย/ห้อง'] !== undefined) ? parseFloat(data[8]['เฉลี่ย/ห้อง']) : 0);
+                        chartTitle = 'กราฟแสดงนักเรียนทั้งหมด เฉลี่ย/ห้องแต่ละปี';
+                        isAverageData = true;
+                        break;
+                }
+            });
+
+            const datasets = [{
+                label: chartTitle.replace('กราฟแสดง', ''), // Use a cleaner label for the legend
+                data: chartData,
+                backgroundColor: COLOR_PALETTE[dataType].backgroundColor, // Use specific color from palette
+                borderColor: COLOR_PALETTE[dataType].borderColor,       // Use specific color from palette
+                borderWidth: 2,
+                borderRadius: 8
+            }];
+
+            const datalabelsConfig = {
+                display: true,
+                color: '#333',
+                font: {
+                    family: 'Sarabun',
+                    size: 12,
+                    weight: 'bold'
+                },
+                anchor: 'end',
+                align: 'top',
+                formatter: function(value) {
+                    return isAverageData ? parseFloat(value).toFixed(2) : value.toLocaleString();
+                }
+            };
+
+            // Pass isAverageData flag to generic chart for tooltip formatting
+            createGenericChart('chart-total-stats', chartLabels, datasets, chartTitle, { ...datalabelsConfig, isAverage: isAverageData });
+        }
+
+        // Load all data when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
+�
